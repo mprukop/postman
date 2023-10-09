@@ -1,0 +1,92 @@
+// Check scripts from reports and pivot tables
+// Check scripts from CCS upload
+// Check scripts from View Field Validation
+// Check scripts for Postman - node.js integration (responses to file)
+// Check scripts for Test Catalog Cockpit (ajv)
+
+// --------------------------------------------
+// Generic code for Pre-request Script section:
+// --------------------------------------------
+
+// ----- Check typeof variable
+if (typeof pm.iterationData.get("tCase") != "undefined") {
+    pm.collectionVariables.set("testCase", pm.iterationData.get("tCase"));
+} else {
+    pm.collectionVariables.set("testCase", ""+i+"@domain.com");
+}
+
+// ----- Check if variable exist
+if (pm.collectionVariables.has('iterationDate')) {
+    iterationDate = pm.collectionVariables.get('iterationDate');
+} else {
+    iterationDate = startDate;
+    pm.collectionVariables.set('iterationDate', iterationDate);
+};
+
+// ----- Prepare query for solR, check if variable exist
+if (pm.iterationData.has("testCase")) {
+    pm.collectionVariables.set("query", pm.iterationData.get("testCase"))
+    let testQ = String(pm.iterationData.get("testCase"));
+    var q = "";
+    var qException = "";
+    if (testQ.includes(" ")) {
+        q = "(\\\"" + testQ.replaceAll(" ", "\\\\+") + "\\\")^4+OR+(" + testQ.replaceAll(" ", "+AND+") + ")^2" + "+OR+(" + testQ.replaceAll(" ", "~1+AND+") + "~1)"
+        qException = "(\"" + testQ.replaceAll(" ", "\\\"OR+\\\"") + "\")"
+    } else {
+        q = "(" + testQ + ")^3+OR+(" + testQ +"*)+OR+(" + testQ + "~1)"
+        qException = "\\\"" + testQ + "\\\""
+    }
+    pm.collectionVariables.set("q", q )
+    pm.collectionVariables.set("qException", qException )
+
+} else {
+    console.log("nooo :(");
+}
+
+
+// ----- Encoding parametar
+if (pm.collectionVariables.get("testCase").includes(" ")) {
+    pm.collectionVariables.set("testCase", encodeURIComponent(pm.iterationData.get("tCase")));
+}
+
+
+// --------------------------------------------
+// ----- Generic code for Tests section: ------
+// --------------------------------------------
+
+pm.test("Approval: "+pm.response.json().response.numFound, () => {
+    pm.expect(pm.response.to.have.status(200));
+    //pm.expect(pm.response.json().status).to.be.not.equal("ERROR");
+});
+
+pm.test("Request successfull", function () {
+  pm.response.to.have.status(200);
+  pm.response.to.be.not.withBody;
+});
+
+var testResult = pm.response.code;
+pm.test("Status code " + testResult, () => {
+    pm.response.to.have.status(200);
+    pm.expect(pm.response.json().success).to.be.equal(false);
+});
+
+pm.test("Status code "+testResult, () => {
+    if (typeof pm.iterationData.get("validFor") != "undefined") {
+        if (pm.iterationData.get("validFor").includes("true")){
+            pm.response.to.have.status(201);
+        } else {
+            pm.response.to.have.status(400);
+        };
+    } else {
+        pm.response.to.have.status(201);
+    }
+});
+
+pm.test("Response time: " +pm.response.responseTime);
+pm.test("Qtime: " +pm.response.json().responseHeader.QTime);
+pm.test("NODE: " + solrNode) ;
+pm.test("numFound: " +pm.response.json().response.numFound);
+
+
+
+
