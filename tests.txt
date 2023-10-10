@@ -1,11 +1,56 @@
-// Check scripts from reports and pivot tables
-// Check scripts from CCS upload
-// Check scripts from View Field Validation
-// Check scripts for Postman - node.js integration (responses to file)
-// Check scripts for Test Catalog Cockpit (ajv)
+// --------------------------------------------
+// ---- Codes used for specific scenarios: ----
+// --------------------------------------------
+
+// Using test cases from json file
+// json with data:
+[
+    {
+        "test": "1",
+        "tCase": "",
+        "valid": "false"
+    },
+    {
+        "test": "2",
+        "tCase": "!\"#$%&'()*+,-./:;<=>?@[]^_`{|}~",
+        "valid": "false"
+    },
+    {
+        "test": "3",
+        "tCase": "Mad",
+        "valid": "true"
+    }
+]
+
+// Pre-request:
+pm.collectionVariables.set("testCase", pm.iterationData.get("tCase"));
+
+// Tests:
+pm.test("Status code "+testResult, () => {
+    if (pm.iterationData.get("valid").includes("true")){
+        pm.response.to.have.status(201);
+    } else {
+        pm.response.to.have.status(400);
+    };
+});
+
+
+// Script for validation of schema
+// Variable with schema:
+containersSchema: {"type":"array","items":{"type":"object","properties":{"createdAt":{"type":"string"},"changedAt":{"type":"string"},"id":{"type":"integer"},"name":{"type":"string"},"status":{"type":"string"},"consumer":{"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id","name"]},"provider":{"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id","name"]},"locked":{"type":"boolean"},"deleted":{"type":"boolean"},"forApproval":{"type":"boolean"},"category":{"type":"object","properties":{"type":{"type":"string"}},"required":["type"]},"newestIndexFile":{"type":"object","properties":{"id":{"type":"integer"},"uploadDate":{"type":"string"},"originalFile":{"type":"object","properties":{"name":{"type":"string"}},"required":["name"]},"uploadedBy":{"type":"object","properties":{"personData":{"type":"object","properties":{"completeName":{"type":"string"}},"required":["completeName"]}},"required":["personData"]}},"required":["id","uploadDate","originalFile","uploadedBy"]}},"required":["createdAt","id","name","consumer","locked","deleted","forApproval","category"]}}
+
+// Test for schema:
+const Ajv = require("ajv");
+const ajv = new Ajv();
+const schemA = JSON.parse(pm.collectionVariables.get("containersSchema"));
+if (pm.response.code === 200) {
+    pm.test("Structure OK", () => {
+        pm.expect(ajv.validate(schemA,pm.response.json())).to.be.true;
+    });
+};
 
 // --------------------------------------------
-// Generic code for Pre-request Script section:
+// --- Code for Pre-request Script section: ---
 // --------------------------------------------
 
 // ----- Check typeof variable
@@ -51,7 +96,7 @@ if (pm.collectionVariables.get("testCase").includes(" ")) {
 
 
 // --------------------------------------------
-// ----- Generic code for Tests section: ------
+// --------- Code for Tests section: ----------
 // --------------------------------------------
 
 pm.test("Approval: "+pm.response.json().response.numFound, () => {
@@ -86,6 +131,26 @@ pm.test("Response time: " +pm.response.responseTime);
 pm.test("Qtime: " +pm.response.json().responseHeader.QTime);
 pm.test("NODE: " + solrNode) ;
 pm.test("numFound: " +pm.response.json().response.numFound);
+
+pm.test("CORE TEST: Change catalog value", () => {
+    switch (pm.iterationData.get("test")) {
+        case 'valid':
+            pm.response.to.have.status(pm.iterationData.get("status"));
+            pm.expect(pm.response.json().success).to.be.equal(true);
+            break;
+        case 'invalid':
+            pm.response.to.have.status(pm.iterationData.get("status"));
+            pm.expect(pm.response.json().code).to.be.equal("401");
+            break;
+        case 'error':
+            pm.response.to.have.status(pm.iterationData.get("status"));
+            pm.expect(pm.response.headers.get('Content-Type')).to.include('text/html');
+            break;
+        /*default:
+            pm.expect(pm.response.code).to.be.equal(404);
+            break;*/
+    } 
+});
 
 
 
